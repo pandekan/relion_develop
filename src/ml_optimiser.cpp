@@ -8111,7 +8111,7 @@ void MlOptimiser::convertAllSquaredDifferencesToWeights(long int part_id, int ib
     if (exp_ipass > 0)
     {
         constexpr int num_dump = 10;
-        double save_significant_weight = DIRECT_A1D_ELEM(sorted_weight, (XSIZE(sorted_weight) >= num_dump) ? XSIZE(sorted_weight) - num_dump : 0);
+        // double save_significant_weight = DIRECT_A1D_ELEM(sorted_weight, (XSIZE(sorted_weight) >= num_dump) ? XSIZE(sorted_weight) - num_dump : 0);
         FileName outfilename = fn_out + "/significant_weights_" + std::to_string(part_id) + ".csv"; //
         std::ofstream outfile(outfilename, std::ios::trunc);
         outfile << "weights,class,rot,tilt,psi,tran_x,tran_y\n";
@@ -8142,7 +8142,7 @@ void MlOptimiser::convertAllSquaredDifferencesToWeights(long int part_id, int ib
                         {
                             for (long int iover_trans = 0; iover_trans < exp_nr_oversampled_trans; iover_trans++, ihidden_over++)
                             {
-                                if (DIRECT_A1D_ELEM(exp_Mweight, ihidden_over) >= save_significant_weight)
+                                if (DIRECT_A1D_ELEM(exp_Mweight, ihidden_over) >= my_significant_weight)
                                 {
                                     outfile << DIRECT_A1D_ELEM(exp_Mweight, ihidden_over) << ","
                                             << exp_iclass << ","
