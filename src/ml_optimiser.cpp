@@ -67,6 +67,147 @@
 
 #define NR_CLASS_MUTEXES 5
 
+namespace meda
+{
+    bool File2Args(const std::string &filename, int &argc, char **&argv)
+    {
+        std::ifstream file(filename);
+        if (!file.is_open())
+        {
+            std::cerr << "(meda) Error: Cannot open input arguments file " << filename << std::endl;
+            return false;
+        }
+
+        // Read entire file content
+        std::string content;
+        std::string line;
+        while (std::getline(file, line))
+        {
+            // if line begins with #, treat it as a comment and skip it
+            if (line.empty() || line[0] == '#')
+            {
+                continue;
+            }
+            content += line + " ";
+        }
+        file.close();
+
+        // Parse content with quote handling
+        std::vector<std::string> tokens;
+        std::string current_token;
+        bool in_quotes = false;
+        bool escape_next = false;
+
+        for (char c : content)
+        {
+            if (escape_next)
+            {
+                current_token += c;
+                escape_next = false;
+            }
+            else if (c == '\\')
+            {
+                escape_next = true;
+            }
+            else if (c == '"')
+            {
+                in_quotes = !in_quotes;
+            }
+            else if (std::isspace(c) && !in_quotes)
+            {
+                if (!current_token.empty())
+                {
+                    tokens.push_back(current_token);
+                    current_token.clear();
+                }
+            }
+            else
+            {
+                current_token += c;
+            }
+        }
+
+        // Add last token if not empty
+        if (!current_token.empty())
+        {
+            tokens.push_back(current_token);
+        }
+
+        tokens.insert(tokens.begin(), "executable_name"); // Insert empty string at the beginning for argv[0]
+
+        // Set argc
+        argc = static_cast<int>(tokens.size());
+
+        if (argc == 0)
+        {
+            argv = nullptr;
+            return true;
+        }
+
+        // Allocate memory for argv
+        argv = new char *[argc + 1];
+
+        // Copy tokens to argv
+        for (int i = 0; i < argc; ++i)
+        {
+            argv[i] = new char[tokens[i].length() + 1];
+            std::strcpy(argv[i], tokens[i].c_str());
+        }
+        argv[argc] = nullptr; // Set last element to nullptr for compatibility with C-style argv
+
+        return true;
+    }
+
+    inline std::vector<RFLOAT> Ang2Vec(RFLOAT theta, RFLOAT phi)
+    {
+        RFLOAT sin_theta = std::sin(theta);
+        RFLOAT cos_theta = std::cos(theta);
+        return std::vector<RFLOAT>{sin_theta * std::cos(phi), sin_theta * std::sin(phi), cos_theta};
+    }
+
+    inline RFLOAT NormalizingConstant(RFLOAT b_val)
+    {
+        return 4 * M_PI * std::sinh(b_val) / b_val;
+    }
+
+    RFLOAT ProbablityDistributionFunction(RFLOAT theta, RFLOAT phi,
+                                          const std::vector<RFLOAT> &a_vec, const std::vector<RFLOAT> &b_vec,
+                                          const std::vector<RFLOAT> &theta_pref_vec, const std::vector<RFLOAT> &phi_pref_vec)
+    {
+        const int num_pref = a_vec.size();
+        const auto cur_vec = Ang2Vec(theta, phi);
+        RFLOAT numerator = 0.0, denominator = 0.0;
+        for (int ind_pref = 0; ind_pref < num_pref; ind_pref++)
+        {
+            const auto pref_vec = Ang2Vec(theta_pref_vec[ind_pref], phi_pref_vec[ind_pref]);
+            RFLOAT val = pref_vec[0] * cur_vec[0] + pref_vec[1] * cur_vec[1] + pref_vec[2] * cur_vec[2];
+            numerator += a_vec[ind_pref] * std::exp(b_vec[ind_pref] * val) / NormalizingConstant(b_vec[ind_pref]);
+            denominator += a_vec[ind_pref];
+        }
+        return numerator / denominator;
+    }
+
+    void ReadOrientationPrior(const FileName &fn_prior, std::vector<RFLOAT> &a_vec, std::vector<RFLOAT> &b_vec,
+                              std::vector<RFLOAT> &theta_pref_vec, std::vector<RFLOAT> &phi_pref_vec)
+    {
+        // Read the orientation prior from a file
+        std::ifstream infile(fn_prior);
+        if (!infile.is_open())
+        {
+            REPORT_ERROR("(meda) Cannot open orientation prior file: " + fn_prior);
+        }
+
+        RFLOAT a, b, theta, phi;
+        while (infile >> a >> b >> theta >> phi)
+        {
+            a_vec.push_back(a);
+            b_vec.push_back(b);
+            theta_pref_vec.push_back(theta);
+            phi_pref_vec.push_back(phi);
+        }
+    }
+} // namespace meda
+
 // Some global threads management variables
 static omp_lock_t global_mutex2[NR_CLASS_MUTEXES] = {};
 static omp_lock_t global_mutex;
@@ -75,6 +216,7 @@ static omp_lock_t global_mutex;
 
 void globalThreadExpectationSomeParticles(void *self, int thread_id)
 {
+
     MlOptimiser *MLO = (MlOptimiser *)self;
 
     try
@@ -7810,6 +7952,20 @@ void MlOptimiser::convertAllSquaredDifferencesToWeights(long int part_id, int ib
         pdf_orientation_mean /= (RFLOAT)pdf_orientation_count;
         pdf_offset_mean /= (RFLOAT)pdf_offset_count;
 
+        // MEDA incorprate prior information
+        FileName meda_arguments("meda_arguments.txt");
+        int meda_argc;
+        char **meda_argv;
+        meda::File2Args(meda_arguments, meda_argc, meda_argv);
+        FileName meda_fn_orientation_prior = getParameter(meda_argc, meda_argv, "--meda_orientation_prior", "");
+        std::vector<RFLOAT> meda_a_vec, meda_b_vec, meda_theta_pref_vec, meda_phi_pref_vec;
+        bool meda_if_prior_dist = false;
+        if (meda_fn_orientation_prior != "")
+        {
+            meda_if_prior_dist = true;
+            meda::ReadOrientationPrior(meda_fn_orientation_prior, meda_a_vec, meda_b_vec, meda_theta_pref_vec, meda_phi_pref_vec);
+        }
+
         // Loop from iclass_min to iclass_max to deal with seed generation in first iteration
         for (int exp_iclass = exp_iclass_min; exp_iclass <= exp_iclass_max; exp_iclass++)
         {
@@ -7860,6 +8016,15 @@ void MlOptimiser::convertAllSquaredDifferencesToWeights(long int part_id, int ib
 
                     if (pdf_orientation_mean != 0.)
                         pdf_orientation /= pdf_orientation_mean;
+
+                    // MEDA get the values of oversampled orientations
+                    std::vector<RFLOAT> meda_oversampled_rot, meda_oversampled_tilt, meda_oversampled_psi;
+                    if (meda_if_prior_dist)
+                    {
+                        sampling.getOrientations(idir, ipsi, exp_current_oversampling,
+                                                 meda_oversampled_rot, meda_oversampled_tilt, meda_oversampled_psi,
+                                                 exp_pointer_dir_nonzeroprior, exp_directions_prior, exp_pointer_psi_nonzeroprior, exp_psi_prior);
+                    }
 
                     // Loop over all translations
                     long int ihidden = iorientclass * exp_nr_trans;
@@ -7946,6 +8111,14 @@ void MlOptimiser::convertAllSquaredDifferencesToWeights(long int part_id, int ib
                                     // TODO: use tabulated exp function?
                                     else
                                         weight *= exp(-diff2);
+
+                                    // MEDA caluclate the prior distribution values
+                                    if (meda_if_prior_dist)
+                                    {
+                                        weight *= meda::ProbablityDistributionFunction(meda_oversampled_rot[iover_rot], meda_oversampled_tilt[iover_rot],
+                                                                                       meda_a_vec, meda_b_vec,
+                                                                                       meda_theta_pref_vec, meda_phi_pref_vec);
+                                    }
 
                                     // std::cerr << "ihidden_over= "<<ihidden_over << " weight= " << weight << " diff2= " << diff2
                                     //		<< " pdf_orientation= " << pdf_orientation << " pdf_offset= " << pdf_offset<< std::endl;
@@ -8110,7 +8283,7 @@ void MlOptimiser::convertAllSquaredDifferencesToWeights(long int part_id, int ib
     // TEMP zixi, for dumping major weights
     if (exp_ipass > 0)
     {
-        constexpr int num_dump = 10;
+        // constexpr int num_dump = 10;
         // double save_significant_weight = DIRECT_A1D_ELEM(sorted_weight, (XSIZE(sorted_weight) >= num_dump) ? XSIZE(sorted_weight) - num_dump : 0);
         FileName outfilename = fn_out + "/significant_weights_" + std::to_string(part_id) + ".csv"; //
         std::ofstream outfile(outfilename, std::ios::trunc);
