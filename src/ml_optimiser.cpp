@@ -1225,6 +1225,14 @@ void MlOptimiser::parseInitial(int argc, char **argv)
 
     min_sigma2_offset = textToFloat(parser.getOption("--min_sigma2_offset", "Lower bound for sigma2 for offset", "2.", true));
 
+    // MEDA read in meda arguments
+    parser.addSection("MEDA experiment arguments");
+    meda_fn_orientation_prior = parser.getOption("--meda_fn_orientation_prior",
+                                                 "TXT file of the prior orientation distribution, iterating in the order of(a_i, b_i, theta_pref_i, phi_pref_i) ",
+                                                 "",
+                                                 true);
+    meda_if_prior_dist = (meda_fn_orientation_prior != "") ? true : false;
+
 #ifdef DEBUG_READ
     std::cerr << "MlOptimiser::parseInitial Done" << std::endl;
 #endif
@@ -2724,6 +2732,12 @@ void MlOptimiser::initialiseGeneral(int rank)
     if (minimum_nr_particles_sigma2_noise < 0)
     {
         minimum_nr_particles_sigma2_noise = (mymodel.data_dim == 3 || mydata.is_tomo) ? 10 : 1000;
+    }
+
+    // MEDA initialize meda variables
+    if (meda_if_prior_dist)
+    {
+        meda::ReadOrientationPrior(meda_fn_orientation_prior, meda_a_vec, meda_b_vec, meda_theta_pref_vec, meda_phi_pref_vec);
     }
 
 #ifdef DEBUG
@@ -7951,24 +7965,6 @@ void MlOptimiser::convertAllSquaredDifferencesToWeights(long int part_id, int ib
         }
         pdf_orientation_mean /= (RFLOAT)pdf_orientation_count;
         pdf_offset_mean /= (RFLOAT)pdf_offset_count;
-
-        // MEDA incorprate prior information
-        // FileName meda_arguments("meda_arguments.txt");
-        // int meda_argc;
-        // char **meda_argv;
-        // meda::File2Args(meda_arguments, meda_argc, meda_argv);
-        // FileName meda_fn_orientation_prior = getParameter(meda_argc, meda_argv, "--meda_orientation_prior", "");
-        FileName meda_fn_orientation_prior = parser.getOption("--meda_fn_orientation_prior",
-                                                              "TXT file of the prior orientation distribution, iterating in the order of(a_i, b_i, theta_pref_i, phi_pref_i) ",
-                                                              "",
-                                                              true);
-        std::vector<RFLOAT> meda_a_vec, meda_b_vec, meda_theta_pref_vec, meda_phi_pref_vec;
-        bool meda_if_prior_dist = false;
-        if (meda_fn_orientation_prior != "")
-        {
-            meda_if_prior_dist = true;
-            meda::ReadOrientationPrior(meda_fn_orientation_prior, meda_a_vec, meda_b_vec, meda_theta_pref_vec, meda_phi_pref_vec);
-        }
 
         // Loop from iclass_min to iclass_max to deal with seed generation in first iteration
         for (int exp_iclass = exp_iclass_min; exp_iclass <= exp_iclass_max; exp_iclass++)
