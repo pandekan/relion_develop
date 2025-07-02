@@ -7953,11 +7953,15 @@ void MlOptimiser::convertAllSquaredDifferencesToWeights(long int part_id, int ib
         pdf_offset_mean /= (RFLOAT)pdf_offset_count;
 
         // MEDA incorprate prior information
-        FileName meda_arguments("meda_arguments.txt");
-        int meda_argc;
-        char **meda_argv;
-        meda::File2Args(meda_arguments, meda_argc, meda_argv);
-        FileName meda_fn_orientation_prior = getParameter(meda_argc, meda_argv, "--meda_orientation_prior", "");
+        // FileName meda_arguments("meda_arguments.txt");
+        // int meda_argc;
+        // char **meda_argv;
+        // meda::File2Args(meda_arguments, meda_argc, meda_argv);
+        // FileName meda_fn_orientation_prior = getParameter(meda_argc, meda_argv, "--meda_orientation_prior", "");
+        FileName meda_fn_orientation_prior = parser.getOption("--meda_fn_orientation_prior",
+                                                              "TXT file of the prior orientation distribution, iterating in the order of(a_i, b_i, theta_pref_i, phi_pref_i) ",
+                                                              "",
+                                                              true);
         std::vector<RFLOAT> meda_a_vec, meda_b_vec, meda_theta_pref_vec, meda_phi_pref_vec;
         bool meda_if_prior_dist = false;
         if (meda_fn_orientation_prior != "")
