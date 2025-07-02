@@ -744,7 +744,7 @@ public:
     // MEDA section
     // prior distribution information
     FileName meda_fn_orientation_prior;
-    bool meda_if_prior_dist;
+    bool meda_do_orientation_prior;
     std::vector<RFLOAT> meda_a_vec, meda_b_vec, meda_theta_pref_vec, meda_phi_pref_vec;
 
 #ifdef TIMING

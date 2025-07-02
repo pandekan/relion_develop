@@ -1231,7 +1231,7 @@ void MlOptimiser::parseInitial(int argc, char **argv)
                                                  "TXT file of the prior orientation distribution, iterating in the order of(a_i, b_i, theta_pref_i, phi_pref_i) ",
                                                  "",
                                                  true);
-    meda_if_prior_dist = (meda_fn_orientation_prior != "") ? true : false;
+    meda_do_orientation_prior = (meda_fn_orientation_prior != "") ? true : false;
 
 #ifdef DEBUG_READ
     std::cerr << "MlOptimiser::parseInitial Done" << std::endl;
@@ -2735,7 +2735,7 @@ void MlOptimiser::initialiseGeneral(int rank)
     }
 
     // MEDA initialize meda variables
-    if (meda_if_prior_dist)
+    if (meda_do_orientation_prior)
     {
         meda::ReadOrientationPrior(meda_fn_orientation_prior, meda_a_vec, meda_b_vec, meda_theta_pref_vec, meda_phi_pref_vec);
     }
@@ -8019,7 +8019,7 @@ void MlOptimiser::convertAllSquaredDifferencesToWeights(long int part_id, int ib
 
                     // MEDA get the values of oversampled orientations
                     std::vector<RFLOAT> meda_oversampled_rot, meda_oversampled_tilt, meda_oversampled_psi;
-                    if (meda_if_prior_dist)
+                    if (meda_do_orientation_prior)
                     {
                         sampling.getOrientations(idir, ipsi, exp_current_oversampling,
                                                  meda_oversampled_rot, meda_oversampled_tilt, meda_oversampled_psi,
@@ -8113,7 +8113,7 @@ void MlOptimiser::convertAllSquaredDifferencesToWeights(long int part_id, int ib
                                         weight *= exp(-diff2);
 
                                     // MEDA caluclate the prior distribution values
-                                    if (meda_if_prior_dist)
+                                    if (meda_do_orientation_prior)
                                     {
                                         weight *= meda::ProbablityDistributionFunction(meda_oversampled_rot[iover_rot], meda_oversampled_tilt[iover_rot],
                                                                                        meda_a_vec, meda_b_vec,
