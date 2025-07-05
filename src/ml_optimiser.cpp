@@ -8115,7 +8115,7 @@ void MlOptimiser::convertAllSquaredDifferencesToWeights(long int part_id, int ib
                                     // MEDA caluclate the prior distribution values
                                     if (meda_do_orientation_prior)
                                     {
-                                        weight *= meda::ProbablityDistributionFunction(meda_oversampled_rot[iover_rot], meda_oversampled_tilt[iover_rot],
+                                        weight *= meda::ProbablityDistributionFunction(meda_oversampled_rot[iover_rot] * M_PI / 180.0, meda_oversampled_tilt[iover_rot] * M_PI / 180.0,
                                                                                        meda_a_vec, meda_b_vec,
                                                                                        meda_theta_pref_vec, meda_phi_pref_vec);
                                     }
@@ -8280,7 +8280,7 @@ void MlOptimiser::convertAllSquaredDifferencesToWeights(long int part_id, int ib
             break;
     }
 
-    // TEMP zixi, for dumping major weights
+    // MEDA dumping major weights
     if (exp_ipass > 0)
     {
         // constexpr int num_dump = 10;
