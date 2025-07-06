@@ -746,6 +746,10 @@ public:
     FileName meda_fn_orientation_prior;
     bool meda_do_orientation_prior;
     std::vector<RFLOAT> meda_a_vec, meda_b_vec, meda_theta_pref_vec, meda_phi_pref_vec;
+    // Dumping the orientation distributions
+    bool meda_do_output_pose_weights;
+    // Avoid marginalization to take only the leading pose
+    bool meda_do_avoid_marginalization;
 
 #ifdef TIMING
     Timer timer;
@@ -1228,6 +1232,9 @@ public:
 
     // Use phase-shifts in FourierTransform to prevent another interpolation for projected (non-integer) shifts in 2D subtomo stacks
     void selfTranslateSubtomoStack2D(MultidimArray<RFLOAT> &I1, const Matrix1D<RFLOAT> &v, long int part_id, int img_id);
+
+    // MEDA read in meda options
+    void parseMEDAOptions();
 };
 
 // Global call to threaded core of doThreadExpectationSomeParticles

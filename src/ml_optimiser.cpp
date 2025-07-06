@@ -39,6 +39,7 @@
 #include <iostream>
 #include <math.h>
 #include <omp.h>
+#include <sstream>
 #include <stdio.h>
 #include <string>
 #include <sys/time.h>
@@ -205,8 +206,29 @@ namespace meda
             theta_pref_vec.push_back(theta);
             phi_pref_vec.push_back(phi);
         }
+        std::cout << "MEDA: orientation prior distribution read from " << fn_prior << std::endl;
+        std::stringstream orientation_prior_file_content;
+        for (int ind = 0; ind < a_vec.size(); ind++)
+        {
+            orientation_prior_file_content << a_vec[ind] << " " << b_vec[ind] << " " << theta_pref_vec[ind] << " " << phi_pref_vec[ind] << "\n";
+        }
+        std::cout << "File content:\n"
+                  << orientation_prior_file_content.str() << std::endl;
     }
 } // namespace meda
+
+void MlOptimiser::parseMEDAOptions()
+{
+    // MEDA read in meda arguments
+    parser.addSection("MEDA experiment arguments");
+    meda_fn_orientation_prior = parser.getOption("--meda_fn_orientation_prior",
+                                                 "TXT file of the prior orientation distribution, iterating in the order of(a_i, b_i, theta_pref_i, phi_pref_i) ",
+                                                 "",
+                                                 true);
+    meda_do_orientation_prior = (meda_fn_orientation_prior != "") ? true : false;
+    meda_do_output_pose_weights = parser.checkOption("--meda_output_pose_weights", "");
+    meda_do_avoid_marginalization = parser.checkOption("--meda_avoid_marginalization", "");
+}
 
 // Some global threads management variables
 static omp_lock_t global_mutex2[NR_CLASS_MUTEXES] = {};
@@ -744,6 +766,8 @@ void MlOptimiser::parseContinue(int argc, char **argv)
 
     do_print_metadata_labels = false;
     do_print_symmetry_ops = false;
+
+    parseMEDAOptions();
 #ifdef DEBUG
     std::cerr << "Leaving parseContinue" << std::endl;
 #endif
@@ -1225,14 +1249,7 @@ void MlOptimiser::parseInitial(int argc, char **argv)
 
     min_sigma2_offset = textToFloat(parser.getOption("--min_sigma2_offset", "Lower bound for sigma2 for offset", "2.", true));
 
-    // MEDA read in meda arguments
-    parser.addSection("MEDA experiment arguments");
-    meda_fn_orientation_prior = parser.getOption("--meda_fn_orientation_prior",
-                                                 "TXT file of the prior orientation distribution, iterating in the order of(a_i, b_i, theta_pref_i, phi_pref_i) ",
-                                                 "",
-                                                 true);
-    meda_do_orientation_prior = (meda_fn_orientation_prior != "") ? true : false;
-
+    parseMEDAOptions();
 #ifdef DEBUG_READ
     std::cerr << "MlOptimiser::parseInitial Done" << std::endl;
 #endif
@@ -8281,7 +8298,7 @@ void MlOptimiser::convertAllSquaredDifferencesToWeights(long int part_id, int ib
     }
 
     // MEDA dumping major weights
-    if (exp_ipass > 0)
+    if (meda_do_output_pose_weights && exp_ipass > 0)
     {
         // constexpr int num_dump = 10;
         // double save_significant_weight = DIRECT_A1D_ELEM(sorted_weight, (XSIZE(sorted_weight) >= num_dump) ? XSIZE(sorted_weight) - num_dump : 0);
@@ -8332,6 +8349,27 @@ void MlOptimiser::convertAllSquaredDifferencesToWeights(long int part_id, int ib
             }
         }
         outfile.close();
+    }
+
+    // MEDA avoid marginalization
+    if (meda_do_avoid_marginalization && exp_ipass > 0)
+    {
+        int max_weight_ind = -1;
+        RFLOAT max_weight = -1.;
+        FOR_ALL_DIRECT_ELEMENTS_IN_MULTIDIMARRAY(exp_Mweight)
+        {
+            RFLOAT &val = DIRECT_MULTIDIM_ELEM(exp_Mweight, n);
+            if (val > max_weight)
+            {
+                max_weight = val;
+                DIRECT_MULTIDIM_ELEM(exp_Mweight, max_weight_ind) = 0.0;
+                max_weight_ind = n;
+            }
+            else
+            {
+                val = 0;
+            }
+        }
     }
 
 #ifdef DEBUG_SORT
