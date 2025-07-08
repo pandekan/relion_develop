@@ -226,8 +226,8 @@ void MlOptimiser::parseMEDAOptions()
                                                  "",
                                                  true);
     meda_do_orientation_prior = (meda_fn_orientation_prior != "") ? true : false;
-    meda_do_output_pose_weights = parser.checkOption("--meda_output_pose_weights", "");
-    meda_do_avoid_marginalization = parser.checkOption("--meda_avoid_marginalization", "");
+    meda_do_output_pose_weights = parser.checkOption("--meda_output_pose_weights", "Turn on to dump weights of the poses");
+    meda_do_avoid_marginalization = parser.checkOption("--meda_avoid_marginalization", "Turn on to avoid marginalization of the poses");
 }
 
 // Some global threads management variables
