@@ -220,6 +220,7 @@ namespace meda
 void MlOptimiser::parseMEDAOptions()
 {
     // MEDA read in meda arguments
+    std::cout << " ******************** (MEDA): reading MEDA experiment options" << std::endl;
     parser.addSection("MEDA experiment arguments");
     meda_fn_orientation_prior = parser.getOption("--meda_fn_orientation_prior",
                                                  "TXT file of the prior orientation distribution, iterating in the order of(a_i, b_i, theta_pref_i, phi_pref_i) ",
@@ -8355,21 +8356,18 @@ void MlOptimiser::convertAllSquaredDifferencesToWeights(long int part_id, int ib
     if (meda_do_avoid_marginalization && exp_ipass > 0)
     {
         int max_weight_ind = -1;
-        RFLOAT max_weight = -1.;
+        RFLOAT max_weight = -1.0;
         FOR_ALL_DIRECT_ELEMENTS_IN_MULTIDIMARRAY(exp_Mweight)
         {
             RFLOAT &val = DIRECT_MULTIDIM_ELEM(exp_Mweight, n);
             if (val > max_weight)
             {
-                max_weight = val;
-                DIRECT_MULTIDIM_ELEM(exp_Mweight, max_weight_ind) = 0.0;
                 max_weight_ind = n;
+                max_weight = val;
             }
-            else
-            {
-                val = 0;
-            }
-        }
+            val = 0.0;
+        } 
+        DIRECT_MULTIDIM_ELEM(exp_Mweight, max_weight_ind) = max_weight;
     }
 
 #ifdef DEBUG_SORT
