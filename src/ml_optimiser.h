@@ -749,7 +749,7 @@ public:
     // Dumping the orientation distributions
     bool meda_do_output_pose_weights;
     // Avoid marginalization to take only the leading pose
-    bool meda_do_avoid_marginalization;
+    int meda_avoid_marginalization_from;
 
 #ifdef TIMING
     Timer timer;

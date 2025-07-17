@@ -224,11 +224,13 @@ void MlOptimiser::parseMEDAOptions()
     parser.addSection("MEDA experiment arguments");
     meda_fn_orientation_prior = parser.getOption("--meda_fn_orientation_prior",
                                                  "TXT file of the prior orientation distribution, iterating in the order of(a_i, b_i, theta_pref_i, phi_pref_i) ",
-                                                 "",
-                                                 true);
+                                                 "");
     meda_do_orientation_prior = (meda_fn_orientation_prior != "") ? true : false;
     meda_do_output_pose_weights = parser.checkOption("--meda_output_pose_weights", "Turn on to dump weights of the poses");
-    meda_do_avoid_marginalization = parser.checkOption("--meda_avoid_marginalization", "Turn on to avoid marginalization of the poses");
+    // meda_do_avoid_marginalization = parser.checkOption("--meda_avoid_marginalization", "Turn on to avoid marginalization of the poses");
+    meda_avoid_marginalization_from = textToInteger(parser.getOption("--meda_avoid_marginalization_from", 
+                                                                     "from which iteration the margnalization is turned off",
+                                                                     "-1"));
 }
 
 // Some global threads management variables
@@ -8353,7 +8355,7 @@ void MlOptimiser::convertAllSquaredDifferencesToWeights(long int part_id, int ib
     }
 
     // MEDA avoid marginalization
-    if (meda_do_avoid_marginalization && exp_ipass > 0)
+    if (meda_avoid_marginalization_from >= 0 && iter >= meda_avoid_marginalization_from && exp_ipass > 0)
     {
         int max_weight_ind = -1;
         RFLOAT max_weight = -1.0;
